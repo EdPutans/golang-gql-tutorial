@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 
+	database "firstexit/internal/pkg/db/migrations/mysql"
+
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 )
@@ -20,6 +22,9 @@ func main() {
 	}
 
 	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{}}))
+
+	database.InitDB()
+	database.Migrate()
 
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	http.Handle("/query", srv)
