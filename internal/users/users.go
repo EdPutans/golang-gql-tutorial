@@ -35,18 +35,6 @@ func GetUserIDByUsername(username string) (int, error) {
 	return ID, nil
 }
 
-func (user *User) CheckExists() bool {
-	existStmt, _ := database.Db.Prepare(`SELECT * FROM Users WHERE Username=?`)
-	err, _ := existStmt.Exec(user.Username)
-	log.Println(err)
-	log.Print("CHECKIONG IF EXISTS:", err)
-	if err != nil {
-		return false
-	}
-	return true
-
-}
-
 // Create meks user
 func (user *User) Create() {
 	statement, err := database.Db.Prepare("INSERT INTO Users(Username,Password) VALUES(?,?)")

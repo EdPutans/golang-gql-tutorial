@@ -7,27 +7,39 @@ import (
 	"context"
 	"firstexit/graph/generated"
 	"firstexit/graph/model"
+	"firstexit/internal/auth"
 	"firstexit/internal/links"
 	"firstexit/internal/pkg/jwt"
 	"firstexit/internal/users"
 	"fmt"
+	"log"
 	"strconv"
 )
 
 func (r *mutationResolver) CreateLink(ctx context.Context, input model.NewLink) (*model.Link, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return &model.Link{}, fmt.Errorf("access denied")
+	}
 	var link links.Link
+	link.User = user
 	link.Title = input.Title
 	link.Address = input.Address
 	linkID := link.Write()
-	return &model.Link{ID: strconv.FormatInt(linkID, 10), Title: link.Title, Address: link.Address}, nil
+	grahpqlUser := &model.User{ // why gql user?!?!?!?
+		ID:   user.ID,
+		Name: user.Username,
+	}
+	return &model.Link{ID: strconv.FormatInt(linkID, 10), Title: link.Title, Address: link.Address, User: grahpqlUser}, nil
 }
 
 func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) (string, error) {
 	var user users.User
 	user.Username = input.Username
 	user.Password = input.Password
-	exists := user.CheckExists()
-	if exists != true {
+	id, err := users.GetUserIDByUsername(user.Username)
+	log.Print(id, err)
+	if id != 0 {
 		return "", &users.UserExistsError{}
 	}
 	user.Create()
@@ -56,7 +68,15 @@ func (r *mutationResolver) Login(ctx context.Context, input model.Login) (string
 }
 
 func (r *mutationResolver) RefreshToken(ctx context.Context, input model.RefreshTokenInput) (string, error) {
-	panic(fmt.Errorf("not implemented"))
+	username, err := jwt.ParseToken(input.Token)
+	if err != nil {
+		return "", fmt.Errorf("access denied")
+	}
+	token, err := jwt.GenerateToken(username)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
 }
 
 func (r *queryResolver) Links(ctx context.Context) ([]*model.Link, error) {
